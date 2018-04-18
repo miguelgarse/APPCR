@@ -14,6 +14,7 @@ import coppelia.remoteApi;
 
 public class Quadricopter implements Runnable{
 	private String id_target;
+	private float lastAltitude;
 	private long id;
 	private int clientID;
 	private remoteApi vrep;
@@ -28,8 +29,8 @@ public class Quadricopter implements Runnable{
 
 	boolean detected = false;
 	boolean detected_1 = false;
-	boolean muro_pasado = false;
-	boolean muro_encontrado = false;
+	boolean obstacle_passed = false;
+	boolean obstacle_found = false;
 
 	private int estado = Constants.ON_ROTATION;
 
@@ -205,7 +206,7 @@ public class Quadricopter implements Runnable{
 						}
 	
 						if (detected) { // Ha encontrado el muro
-							estado = Constants.PASS_WALL;
+							estado = Constants.PASS_OBSTACLE;
 						}
 	
 						break;
@@ -214,24 +215,25 @@ public class Quadricopter implements Runnable{
 						xStep = 0;
 						estado = Constants.GO_AHEAD;
 						break;
-					case Constants.PASS_WALL:
+					case Constants.PASS_OBSTACLE:
 						if (detected) {
 							xStep = 0;
 							zStep = stepSize;
 						}
 						if (!detected) {
 							if (detected_1) {
-								muro_encontrado = true;
-								System.out.println("Ha encontrado el muro");
-							} else if (!detected_1 && muro_encontrado) {
-								muro_pasado = true;
-								System.out.println("Ha pasado el muro");
+								obstacle_found = true;
+								this.messages.add("[" + id_target + "] The obstacle has been found");
+								lastAltitude = posArray[2];
+							} else if (!detected_1 && obstacle_found) {
+								obstacle_passed = true;
+								this.messages.add("[" + id_target + "] The obstacle has been passed");
 							}
 	
-							if (muro_pasado) { // Empieza a bajar
+							if (obstacle_passed) { // Empieza a bajar
 								estado = Constants.GO_DOWN;
-								muro_pasado = false;
-								muro_encontrado = false;
+								obstacle_passed = false;
+								obstacle_found = false;
 							} else { // avanza
 								zStep = 0;
 								xStep = stepSize;
@@ -242,7 +244,7 @@ public class Quadricopter implements Runnable{
 						zStep = -stepSize;
 						xStep = 0;
 	
-						if (detected_1) {
+						if (detected_1 && posArray[2] < lastAltitude) {
 							estado = Constants.GO_AHEAD;
 						}
 	

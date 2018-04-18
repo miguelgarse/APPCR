@@ -4,7 +4,7 @@ public class Constants {
 	public static final int GO_AHEAD = 1;
 	public static final int GO_UP = 2;
 	public static final int GO_DOWN = 3;
-	public static final int PASS_WALL = 4;
+	public static final int PASS_OBSTACLE = 4;
 	public static final int ON_MOVE = 5;
 	public static final int ON_MOVE_BACKWARD = 6;
 	public static final int ON_ROTATION = 7;
@@ -27,7 +27,7 @@ public class Constants {
 			state_string = "GO_DOWN";
 			break;
 		case 4:
-			state_string = "PASS_WALL";
+			state_string = "PASS_OBSTACLE";
 			break;
 		case 5:
 			state_string = "ON_MOVE";
