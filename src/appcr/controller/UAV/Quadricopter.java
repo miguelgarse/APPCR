@@ -3,14 +3,18 @@ package appcr.controller.UAV;
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Queue;
+
 import appcr.controller.main.Constants;
 import coppelia.BoolW;
 import coppelia.FloatWA;
 import coppelia.IntW;
 import coppelia.remoteApi;
 
-public class Quadricopter extends Thread{
+public class Quadricopter implements Runnable{
 	private String id_target;
+	private long id;
 	private int clientID;
 	private remoteApi vrep;
 	private double batteryLevel;
@@ -19,6 +23,8 @@ public class Quadricopter extends Thread{
 	private int sleepTime;
 	private List<Point2D> pointsList;
 	private Point2D.Float actual_animal_position;
+	private Map<Long, Integer> actions;
+	private Queue<String> messages;
 
 	boolean detected = false;
 	boolean detected_1 = false;
@@ -37,12 +43,15 @@ public class Quadricopter extends Thread{
 	 * @param angleStepSize
 	 * @param sleepTime
 	 */
-	public Quadricopter(long id, String id_target, double batteryLevel, float stepSize, float angleStepSize, int sleepTime) {
+	public Quadricopter(long id, String id_target, double batteryLevel, float stepSize, float angleStepSize, int sleepTime, Map<Long, Integer> actions, Queue<String> messages) {
+		this.id = id;
 		this.batteryLevel = batteryLevel;
 		this.stepSize = stepSize;
 		this.angleStepSize = angleStepSize;
 		this.id_target = id_target;
 		this.sleepTime = sleepTime;
+		this.actions = actions;
+		this.messages = messages;
 		
 		System.out.println("Drone " + id + " started");
 		vrep = new remoteApi();
@@ -50,15 +59,16 @@ public class Quadricopter extends Thread{
 		clientID = vrep.simxStart("127.0.0.1", 19999, true, true, 50000, 5);
 		
 		if (clientID != -1) {
-			System.out.println("Connected to remote API server");
+			this.messages.add("[" + id_target + "] Connected to remote API server");
 		} else {
-			System.out.println("Cannot connect to remote API server");
+			this.messages.add("[" + id_target + "] Cannot connect to remote API server");
 		}
 	}
 
 	/**
-	 * 
+	 * Método especificado por la clase Runnable
 	 */
+	@Override
 	public void run() {
 
 		// Manejador de la bola
@@ -66,21 +76,21 @@ public class Quadricopter extends Thread{
 		int ret = vrep.simxGetObjectHandle(clientID, id_target, targetOBJ, remoteApi.simx_opmode_blocking);
 
 		if (ret == remoteApi.simx_return_ok) {
-			System.out.println("Getting Target Handle (OK)\n");
+			this.messages.add("[" + id_target + "] Getting Target Handle (OK)\n");
 
 			// Obtener posici�n actual
 			FloatWA position = new FloatWA(3);
 			ret = vrep.simxGetObjectPosition(clientID, targetOBJ.getValue(), -1, position,
 					remoteApi.simx_opmode_blocking);
 			float posArray[] = position.getArray();
-			System.out.println("X: " + posArray[0] + " Y: " + posArray[1] + " Z: " + posArray[2]);
+			System.out.println("[" + id_target + "] X: " + posArray[0] + " Y: " + posArray[1] + " Z: " + posArray[2]);
 
 			// Obtener orientaci�n actual
 			FloatWA orientationAngles = new FloatWA(3);
 			ret = vrep.simxGetObjectOrientation(clientID, targetOBJ.getValue(), -1, orientationAngles,
 					remoteApi.simx_opmode_blocking);
 			float orientationArray[] = orientationAngles.getArray();
-			System.out.println("Alpha: " + orientationArray[0] + " Beta: " + orientationArray[1] + " Gamma: "
+			System.out.println("[" + id_target + "] Alpha: " + orientationArray[0] + " Beta: " + orientationArray[1] + " Gamma: "
 					+ orientationArray[2]);
 
 			// Ejemplo Sensor de proximidad 1
@@ -88,9 +98,9 @@ public class Quadricopter extends Thread{
 			ret = vrep.simxGetObjectHandle(clientID, "Sensor_proximidad", sensorProximidad,
 					remoteApi.simx_opmode_oneshot_wait);
 			if (ret == remoteApi.simx_return_ok) {
-				System.out.println("Proximity sensor ID: " + sensorProximidad.getValue());
+				System.out.println("[" + id_target + "] Proximity sensor ID: " + sensorProximidad.getValue());
 			} else {
-				System.out.println("Cannot get proximity sensor handle");
+				System.out.println("[" + id_target + "] Cannot get proximity sensor handle");
 			}
 
 			// variables usadas en la lectura del sensor de proximodad
@@ -102,7 +112,7 @@ public class Quadricopter extends Thread{
 			ret = vrep.simxReadProximitySensor(clientID, sensorProximidad.getValue(), detectionState, detectedPoint,
 					detectedObjectHandle, detectedSurfaceNormalVector, remoteApi.simx_opmode_streaming);
 			if (ret != remoteApi.simx_return_ok) {
-				System.out.println("Cannot get proximite sensor read (STREAM)");
+				System.out.println("[" + id_target + "] Cannot get proximite sensor read (STREAM)");
 			}
 
 			// Ejemplo Sensor de proximidad 2
@@ -110,9 +120,9 @@ public class Quadricopter extends Thread{
 			ret = vrep.simxGetObjectHandle(clientID, "Sensor_proximidad_1", sensorProximidad_1,
 					remoteApi.simx_opmode_oneshot_wait);
 			if (ret == remoteApi.simx_return_ok) {
-				System.out.println("Proximity sensor ID: " + sensorProximidad_1.getValue());
+				System.out.println("[" + id_target + "] Proximity sensor ID: " + sensorProximidad_1.getValue());
 			} else {
-				System.out.println("Cannot get proximity sensor handle");
+				System.out.println("[" + id_target + "] Cannot get proximity sensor handle");
 			}
 
 			// variables usadas en la lectura del sensor de proximodad
@@ -125,12 +135,12 @@ public class Quadricopter extends Thread{
 					detectedPoint_1, detectedObjectHandle_1, detectedSurfaceNormalVector_1,
 					remoteApi.simx_opmode_streaming);
 			if (ret != remoteApi.simx_return_ok) {
-				System.out.println("Cannot get proximite sensor read (STREAM)");
+				System.out.println("[" + id_target + "] Cannot get proximite sensor read (STREAM)");
 			}
 
 			// Valores iniciales de los movimientos
 			float xStep = stepSize;
-			float yStep = (float) 0;
+//			float yStep = (float) 0;
 			float zStep = (float) 0;
 
 			actual_animal_position = getAnimalPosition("Escaped_Cow");
@@ -182,7 +192,7 @@ public class Quadricopter extends Thread{
 					detected_1 = detectionState_1.getValue();
 				}
 
-				System.out.println("Estado actual: " + Constants.getState(estado));
+				this.messages.add("[" + id_target + "] Estado actual: " + Constants.getState(estado));
 				
 				switch (estado) {
 					case Constants.GO_AHEAD:
