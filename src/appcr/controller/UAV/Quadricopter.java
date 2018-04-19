@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
+import java.util.concurrent.ThreadLocalRandom;
 
 import appcr.controller.main.Constants;
 import coppelia.BoolW;
@@ -14,7 +15,7 @@ import coppelia.remoteApi;
 
 public class Quadricopter implements Runnable{
 	private String id_target;
-	private float lastAltitude;
+	private float lastAltitude = 0;
 	private long id;
 	private int clientID;
 	private remoteApi vrep;
@@ -219,12 +220,29 @@ public class Quadricopter implements Runnable{
 						if (detected) {
 							xStep = 0;
 							zStep = stepSize;
+							
+							switch(ThreadLocalRandom.current().nextInt(1, 3 + 1)) {
+								case 1:	//Pass the obstacle over it
+									
+								break;
+								case 2:	//Pass the obstacle from the right
+									
+									break;
+								case 3:	//Pass the obstacle from the left
+									
+									break;
+							}
+							
 						}
+						
 						if (!detected) {
 							if (detected_1) {
 								obstacle_found = true;
 								this.messages.add("[" + id_target + "] The obstacle has been found");
-								lastAltitude = posArray[2];
+								
+								if( lastAltitude==0 )
+									lastAltitude = posArray[2];
+								
 							} else if (!detected_1 && obstacle_found) {
 								obstacle_passed = true;
 								this.messages.add("[" + id_target + "] The obstacle has been passed");
@@ -246,6 +264,7 @@ public class Quadricopter implements Runnable{
 	
 						if (detected_1 && posArray[2] < lastAltitude) {
 							estado = Constants.GO_AHEAD;
+							lastAltitude = 0;
 						}
 	
 						break;

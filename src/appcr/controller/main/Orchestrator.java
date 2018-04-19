@@ -28,7 +28,7 @@ public class Orchestrator {
 		
 		float stepSize = (float)0.035;
 		float angleStepSize = (float)0.1;
-		int sleepTime = 80;
+		int sleepTime = 10;
 		double batteryLevel = 100;
 		
 		Thread drone_1 = new Thread(new Quadricopter((long)1,"Quadricopter_target", batteryLevel, stepSize, angleStepSize, sleepTime, actions, messages));
