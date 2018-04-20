@@ -9,6 +9,10 @@ public class Constants {
 	public static final int ON_MOVE_BACKWARD = 6;
 	public static final int ON_ROTATION = 7;
 	
+	// -- High level states --
+	public static final int GET_TO_THE_ANIMAL = 50;
+	public static final int GET_TO_THE_PLATFORM = 51;
+	
 	/**
 	 * 
 	 * @param state
@@ -37,6 +41,13 @@ public class Constants {
 			break;
 		case 7:
 			state_string = "ON_ROTATION";
+			break;
+			
+		case 50:
+			state_string = "GET_TO_THE_ANIMAL";
+			break;
+		case 51:
+			state_string = "GET_TO_THE_PLATFORM";
 			break;
 		
 		}

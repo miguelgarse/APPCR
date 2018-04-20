@@ -7,6 +7,8 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ThreadLocalRandom;
 
+import appcr.controller.communication.Message;
+import appcr.controller.communication.Order;
 import appcr.controller.main.Constants;
 import coppelia.BoolW;
 import coppelia.FloatWA;
@@ -25,8 +27,8 @@ public class Quadricopter implements Runnable{
 	private int sleepTime;
 	private List<Point2D> pointsList;
 	private Point2D.Float actual_animal_position;
-	private Map<Long, Integer> actions;
-	private Queue<String> messages;
+	private Queue<Order> actions;
+	private Queue<Message> messages;
 
 	boolean detected = false;
 	boolean detected_1 = false;
@@ -45,25 +47,24 @@ public class Quadricopter implements Runnable{
 	 * @param angleStepSize
 	 * @param sleepTime
 	 */
-	public Quadricopter(long id, String id_target, double batteryLevel, float stepSize, float angleStepSize, int sleepTime, Map<Long, Integer> actions, Queue<String> messages) {
+	public Quadricopter(long id, String id_target, int clientID, remoteApi vrep, double batteryLevel, float stepSize, float angleStepSize, int sleepTime, Queue<Order> actions, Queue<Message> messages) {
 		this.id = id;
+		this.id_target = id_target;
+		this.clientID = clientID;
+		this.vrep = vrep;
 		this.batteryLevel = batteryLevel;
 		this.stepSize = stepSize;
 		this.angleStepSize = angleStepSize;
-		this.id_target = id_target;
 		this.sleepTime = sleepTime;
 		this.actions = actions;
 		this.messages = messages;
 		
-		System.out.println("Drone " + id + " started");
-		vrep = new remoteApi();
-		vrep.simxFinish(-1); // just in case, close all opened connections
-		clientID = vrep.simxStart("127.0.0.1", 19999, true, true, 50000, 5);
+		this.messages.add(new Message(id_target,"Drone " + id + " started"));
 		
 		if (clientID != -1) {
-			this.messages.add("[" + id_target + "] Connected to remote API server");
+			this.messages.add(new Message(id_target,"Connected to remote API server"));
 		} else {
-			this.messages.add("[" + id_target + "] Cannot connect to remote API server");
+			this.messages.add(new Message(id_target,"Cannot connect to remote API server"));
 		}
 	}
 
@@ -78,31 +79,30 @@ public class Quadricopter implements Runnable{
 		int ret = vrep.simxGetObjectHandle(clientID, id_target, targetOBJ, remoteApi.simx_opmode_blocking);
 
 		if (ret == remoteApi.simx_return_ok) {
-			this.messages.add("[" + id_target + "] Getting Target Handle (OK)\n");
+			this.messages.add(new Message(id_target,"Getting Target Handle (OK)\n"));
 
 			// Obtener posici�n actual
 			FloatWA position = new FloatWA(3);
 			ret = vrep.simxGetObjectPosition(clientID, targetOBJ.getValue(), -1, position,
 					remoteApi.simx_opmode_blocking);
 			float posArray[] = position.getArray();
-			System.out.println("[" + id_target + "] X: " + posArray[0] + " Y: " + posArray[1] + " Z: " + posArray[2]);
+			this.messages.add(new Message(id_target,"X: " + posArray[0] + " Y: " + posArray[1] + " Z: " + posArray[2]));
 
 			// Obtener orientaci�n actual
 			FloatWA orientationAngles = new FloatWA(3);
 			ret = vrep.simxGetObjectOrientation(clientID, targetOBJ.getValue(), -1, orientationAngles,
 					remoteApi.simx_opmode_blocking);
 			float orientationArray[] = orientationAngles.getArray();
-			System.out.println("[" + id_target + "] Alpha: " + orientationArray[0] + " Beta: " + orientationArray[1] + " Gamma: "
-					+ orientationArray[2]);
+			this.messages.add(new Message(id_target,"Alpha: " + orientationArray[0] + " Beta: " + orientationArray[1] + " Gamma: " + orientationArray[2]));
 
 			// Ejemplo Sensor de proximidad 1
 			IntW sensorProximidad = new IntW(1);
-			ret = vrep.simxGetObjectHandle(clientID, "Sensor_proximidad", sensorProximidad,
-					remoteApi.simx_opmode_oneshot_wait);
+			ret = vrep.simxGetObjectHandle(clientID, "Sensor_proximidad", sensorProximidad,	remoteApi.simx_opmode_oneshot_wait);
+			
 			if (ret == remoteApi.simx_return_ok) {
-				System.out.println("[" + id_target + "] Proximity sensor ID: " + sensorProximidad.getValue());
+				this.messages.add(new Message(id_target,"Proximity sensor ID: " + sensorProximidad.getValue()));
 			} else {
-				System.out.println("[" + id_target + "] Cannot get proximity sensor handle");
+				this.messages.add(new Message(id_target,"Cannot get proximity sensor handle"));
 			}
 
 			// variables usadas en la lectura del sensor de proximodad
@@ -114,17 +114,16 @@ public class Quadricopter implements Runnable{
 			ret = vrep.simxReadProximitySensor(clientID, sensorProximidad.getValue(), detectionState, detectedPoint,
 					detectedObjectHandle, detectedSurfaceNormalVector, remoteApi.simx_opmode_streaming);
 			if (ret != remoteApi.simx_return_ok) {
-				System.out.println("[" + id_target + "] Cannot get proximite sensor read (STREAM)");
+				this.messages.add(new Message(id_target,"Cannot get proximite sensor read (STREAM)"));
 			}
 
 			// Ejemplo Sensor de proximidad 2
 			IntW sensorProximidad_1 = new IntW(1);
-			ret = vrep.simxGetObjectHandle(clientID, "Sensor_proximidad_1", sensorProximidad_1,
-					remoteApi.simx_opmode_oneshot_wait);
+			ret = vrep.simxGetObjectHandle(clientID, "Sensor_proximidad_1", sensorProximidad_1, remoteApi.simx_opmode_oneshot_wait);
 			if (ret == remoteApi.simx_return_ok) {
-				System.out.println("[" + id_target + "] Proximity sensor ID: " + sensorProximidad_1.getValue());
+				this.messages.add(new Message(id_target,"Proximity sensor ID: " + sensorProximidad_1.getValue()));
 			} else {
-				System.out.println("[" + id_target + "] Cannot get proximity sensor handle");
+				this.messages.add(new Message(id_target,"Cannot get proximity sensor handle"));
 			}
 
 			// variables usadas en la lectura del sensor de proximodad
@@ -133,17 +132,15 @@ public class Quadricopter implements Runnable{
 			IntW detectedObjectHandle_1 = new IntW(0);
 			FloatWA detectedSurfaceNormalVector_1 = new FloatWA(0);
 
-			ret = vrep.simxReadProximitySensor(clientID, sensorProximidad_1.getValue(), detectionState_1,
-					detectedPoint_1, detectedObjectHandle_1, detectedSurfaceNormalVector_1,
-					remoteApi.simx_opmode_streaming);
+			ret = vrep.simxReadProximitySensor(clientID, sensorProximidad_1.getValue(), detectionState_1, detectedPoint_1, detectedObjectHandle_1, detectedSurfaceNormalVector_1, remoteApi.simx_opmode_streaming);
 			if (ret != remoteApi.simx_return_ok) {
-				System.out.println("[" + id_target + "] Cannot get proximite sensor read (STREAM)");
+				this.messages.add(new Message(id_target,"Cannot get proximite sensor read (STREAM)"));
 			}
 
 			// Valores iniciales de los movimientos
-			float xStep = stepSize;
+			float X_StepFactor = stepSize;
 //			float yStep = (float) 0;
-			float zStep = (float) 0;
+			float Z_StepFactor = (float) 0;
 
 			actual_animal_position = getAnimalPosition("Escaped_Cow");
 			pointsList = getListPoints(getAnimalPosition("Escaped_Cow"), new Point2D.Float(posArray[0], posArray[1]));
@@ -172,59 +169,53 @@ public class Quadricopter implements Runnable{
 				ret = vrep.simxReadProximitySensor(clientID, sensorProximidad.getValue(), detectionState, detectedPoint,
 						detectedObjectHandle, detectedSurfaceNormalVector, remoteApi.simx_opmode_buffer);
 				if (ret != remoteApi.simx_return_ok) {
-					System.out.println("Cannot get proximite sensor read");
+					this.messages.add(new Message(id_target,"Cannot get proximite sensor read"));
 				}
 
 				// valor booleano que indica si se detecta un ejemplo en el rango del sensor
-				if (detectionState != null) {
+				if (detectionState != null)
 					detected = detectionState.getValue();
-					// float[] detectedPointArray = detectedPoint.getArray(); // la coordenada Z
-					// (�ndice 2 del array indica la distancia del objecto detectado
-				}
 
-				ret = vrep.simxReadProximitySensor(clientID, sensorProximidad_1.getValue(), detectionState_1,
-						detectedPoint_1, detectedObjectHandle_1, detectedSurfaceNormalVector_1,
-						remoteApi.simx_opmode_streaming);
-				if (ret != remoteApi.simx_return_ok) {
-					System.out.println("Cannot get proximite sensor read (STREAM)");
-				}
+				ret = vrep.simxReadProximitySensor(clientID, sensorProximidad_1.getValue(), detectionState_1, detectedPoint_1, detectedObjectHandle_1, detectedSurfaceNormalVector_1, remoteApi.simx_opmode_streaming);
+				if (ret != remoteApi.simx_return_ok)
+					this.messages.add(new Message(id_target,"Cannot get proximite sensor read (STREAM)"));
 				
 				
 				if (detectionState_1 != null) {
 					detected_1 = detectionState_1.getValue();
 				}
 
-				this.messages.add("[" + id_target + "] Estado actual: " + Constants.getState(estado));
+				this.messages.add(new Message(id_target,"Estado actual: " + Constants.getState(estado)));
 				
 				switch (estado) {
 					case Constants.GO_AHEAD:
-						zStep = 0;
-						xStep = stepSize;
+						Z_StepFactor = 0;
+						X_StepFactor = 1;
 	
-						if (detected_1) { // Sube un poco
-							zStep = stepSize;
-							xStep = 0;
-						}
+						if (detected_1)
+							estado = Constants.GO_UP;
 	
-						if (detected) { // Ha encontrado el muro
+						if (detected)
 							estado = Constants.PASS_OBSTACLE;
-						}
 	
 						break;
 					case Constants.GO_UP:
-						zStep = (float) 0.015;
-						xStep = 0;
-						estado = Constants.GO_AHEAD;
+						Z_StepFactor = 1;
+						X_StepFactor = 0;
+						
+						if (!detected_1)
+							estado = Constants.GO_AHEAD;
+						
 						break;
 					case Constants.PASS_OBSTACLE:
 						if (detected) {
-							xStep = 0;
-							zStep = stepSize;
+							X_StepFactor = 0;
+							Z_StepFactor = 1;
 							
 							switch(ThreadLocalRandom.current().nextInt(1, 3 + 1)) {
 								case 1:	//Pass the obstacle over it
 									
-								break;
+									break;
 								case 2:	//Pass the obstacle from the right
 									
 									break;
@@ -238,14 +229,14 @@ public class Quadricopter implements Runnable{
 						if (!detected) {
 							if (detected_1) {
 								obstacle_found = true;
-								this.messages.add("[" + id_target + "] The obstacle has been found");
+								this.messages.add(new Message(id_target,"The obstacle has been found"));
 								
 								if( lastAltitude==0 )
 									lastAltitude = posArray[2];
 								
 							} else if (!detected_1 && obstacle_found) {
 								obstacle_passed = true;
-								this.messages.add("[" + id_target + "] The obstacle has been passed");
+								this.messages.add(new Message(id_target,"The obstacle has been passed"));
 							}
 	
 							if (obstacle_passed) { // Empieza a bajar
@@ -253,14 +244,15 @@ public class Quadricopter implements Runnable{
 								obstacle_passed = false;
 								obstacle_found = false;
 							} else { // avanza
-								zStep = 0;
-								xStep = stepSize;
+								Z_StepFactor = 0;
+								X_StepFactor = 1;
 							}
 						}
+						
 						break;
 					case Constants.GO_DOWN:
-						zStep = -stepSize;
-						xStep = 0;
+						Z_StepFactor = -1;
+						X_StepFactor = 0;
 	
 						if (detected_1 && posArray[2] < lastAltitude) {
 							estado = Constants.GO_AHEAD;
@@ -269,14 +261,14 @@ public class Quadricopter implements Runnable{
 	
 						break;
 					case Constants.ON_ROTATION:
-						System.out.println(orientationArray[2] + " -- " + getAngle(new Point2D.Float(posArray[0], posArray[1]), getAnimalPosition("Escaped_Cow")));
+						this.messages.add(new Message(id_target,orientationArray[2] + " -- " + getAngle(new Point2D.Float(posArray[0], posArray[1]), getAnimalPosition("Escaped_Cow"))));
 						if ( Math.abs((double) orientationArray[2] - getAngle(new Point2D.Float(posArray[0], posArray[1]), getAnimalPosition("Escaped_Cow"))) < angleStepSize){
-							xStep = stepSize;
+							X_StepFactor = 1;
 	
 							estado = Constants.GO_AHEAD;
 						} else {
 							// Especificar nuevo angulo
-							xStep = 0;
+							X_StepFactor = 0;
 							
 							orientationArray[2] = (float) getAngle(new Point2D.Float(posArray[0], posArray[1]), getAnimalPosition("Escaped_Cow"));
 							ret = vrep.simxSetObjectOrientation(clientID, targetOBJ.getValue(), -1, orientationAngles, remoteApi.simx_opmode_blocking);
@@ -286,12 +278,12 @@ public class Quadricopter implements Runnable{
 				}
 
 				// Especificar nueva posición
-				if (point < pointsList.size() && xStep != 0) {
+				if (point < pointsList.size() && X_StepFactor != 0) {
 					posArray[0] = (float) pointsList.get(point).getX();
 					posArray[1] = (float) pointsList.get(point).getY();
 					point++;
 				}
-				posArray[2] += zStep;
+				posArray[2] += Z_StepFactor*stepSize;
 				ret = vrep.simxSetObjectPosition(clientID, targetOBJ.getValue(), -1, position, remoteApi.simx_opmode_blocking);
 
 
@@ -306,7 +298,7 @@ public class Quadricopter implements Runnable{
 		} // if
 
 		// Now close the connection to V-REP:
-		System.out.println("Bye...");
+		this.messages.add(new Message(id_target,"Closing connection with V-REP"));
 		vrep.simxFinish(clientID);
 	}
 
@@ -370,7 +362,7 @@ public class Quadricopter implements Runnable{
 	 * @return
 	 */
 	private List<Point2D> getListPoints(Point2D animalPosition, Point2D dronePosition) {
-		System.out.println("Calculating path...");
+		this.messages.add(new Message(id_target,"Calculating Path"));
 		List<Point2D> pointsList = new ArrayList<Point2D>();
 		float x1, y1, x2, y2, x3 = 0, y3 = 0;
 		float d = stepSize;
